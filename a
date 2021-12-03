@@ -1,0 +1,305 @@
+var cols = 21;
+var w = 40;
+var x = 40;
+var y = 40;
+var grid;
+var moves = 0;
+var maxMove = 0 ;
+var globalSum = 0;
+var depth = 20;
+
+function Cell(x,y,w,i) {
+  this.selected = false;
+  this.x = x;
+  this.y = y;
+  this.w = w;
+  this.i = i;
+  this.color = pickColor(this.i);
+}
+
+Cell.prototype.show = function() {
+  noFill();
+  rect(this.x + 10,this.y,this.w,this.w);
+  if (this.color == "b") {
+    fill(color(0,0,0));
+  } else if (this.color == "s") {
+    fill(color(120,120,0));
+  } else if (this.color == "w") {
+    fill(color(255,255,255));
+  }
+  ellipse(this.x + this.w/2 + 10,this.y + this.w/2 , this.w/2);
+}
+
+Cell.prototype.contains = function(x,y) {
+  return (x > this.x && x < this.x + this.w && y > this.y && y < this.y + this.w);
+}
+
+function evaluateBoard(grid) {
+  var net = 0;
+  var midp3 = (grid.length-1)/2;
+  for (var i = 0; i < grid.length ; i++) {
+    if (i < midp3) {
+      if (grid[i].color == "w") {
+        net = net + 50 ; 
+      }
+    } else if (i == midp3) {
+      if (grid[i].color == "s") {
+        net = net + 50 ;
+      }
+    } else if (i > midp3) {
+      if (grid[i].color == "b") {
+        net = net + 50;
+      }
+    }
+  }
+  net = net - 10 * moves;
+  return net;
+}
+
+function findPossibleMoves(grid) {
+  var possibleMoves = [];
+  for (var i = 0 ; i < grid.length ; i++) {
+            if(i+2 < cols && i-2 > -1 && grid[i+2].color == "w" && grid[i+1].color == "b") {
+          possibleMoves.push([i,i+2]);
+        }  if ( i+2 < cols && i-2 > -1 && grid[i+2].color == "b" && grid[i+1].color == "w" ) {
+          possibleMoves.push([i,i+2]);
+        }  if (i+2 < cols && i-2 > -1 && grid[i-2].color == "b" && grid[i-1].color == "w" ) {
+          possibleMoves.push([i-2,i]);
+        }  if (i+2 < cols && i-2 > -1 && grid[i-2].color == "w" && grid[i-1].color == "b" ) {
+          possibleMoves.push([i-2,i]);
+        }  if (i+1 < cols && i-1 > -1 && grid[i+1].color == "w") {
+          possibleMoves.push([i,i+1]);
+        }  if (i+1 < cols && i-1 > -1 && grid[i-1].color == "b")  {
+          possibleMoves.push([i,i-1]);
+        }
+  }
+  return possibleMoves;
+}
+
+function unDo(gridMemory) {
+  doMove(gridMemory[gridMemory.length -1]);
+  gridMemory = gridMemory.pop();
+}
+
+function minimax(grid,depth,sum) {
+  var positionCount = 0 ;
+  positionCount++;
+  var pMoves = findPossibleMoves(grid);
+  pMoves.sort(function(a,b){return 0.5 - Math.random()});
+  var currMove;
+  if (depth === 0 || pMoves.length === 0) {
+    return [null, sum];
+  }
+  var maxValue = Number.NEGATIVE_INFINITY;
+  var minValue = Number.POSITIVE_INFINITY;
+  var bestMove;
+  for (var i = 0 ; i < pMoves.length ; i++) {
+    currMove = pMoves[i];
+    var currPrettyMove = doMove(currMove[0],currMove[1]);
+    var newSum = evaluateBoard(grid);
+    var [childBestMove, childValue] = minimax(grid,depth - 1,newSum);
+    
+    unDo(gridMemory);
+    
+    if (childValue > maxValue) {
+      maxValue = childValue;
+      bestMove = currPrettyMove;
+    }
+    
+    return [bestMove, maxValue];
+    
+  }
+}
+
+function getBestMove(grid,currSum) {
+  var [bestMove, bestMoveValues] = minimax(grid,depth,currSum);
+  return [bestMove , bestMoveValues];
+}
+
+function makeBestMove() {
+  var move = getBestMove(grid,globalSum);
+  globalSum = evaluateBoard(grid);
+  
+  doMove(move[0],move[1]);
+}
+
+function doMove(ind1,ind2) {
+  if (((ind1 + 1 == ind2) || (ind2 + 1 == ind1)) && ((grid[ind1].color == "s")||(grid[ind2].color == "s"))) {
+    var holder = "";
+    holder = grid[ind1].color;
+    grid[ind1].color = grid[ind2].color;
+    grid[ind2].color = holder;
+    moves++;
+    gridMemory.push([ind1,ind2]);
+    
+  } else if (((ind1 + 2 == ind2)||(ind2 + 2 == ind1)) && ((grid[ind1].color == "s")||(grid[ind2].color == "s"))) {
+    var holder2 = "";
+    holder2 = grid[ind1].color;
+    grid[ind1].color = grid[ind2].color;
+    grid[ind2].color = holder2;
+    moves++;
+    gridMemory.push([ind1,ind2]);
+  }
+  console.log(gridMemory);
+}
+
+function mousePressed() {
+  var selectedNo = 0;
+  for (var i = 0; i < cols ; i++) {
+    if (grid[i].selected) {
+      selectedNo++;
+    }
+  }
+  if (selectedNo < 1) {
+    for (var i = 0 ; i < cols ; i++) {
+      if (grid[i].contains(mouseX,mouseY)) {
+        grid[i].selected = true;
+      }
+    }
+  } else if (selectedNo == 1) {
+    for (var i = 0 ; i < cols ; i++) {
+      if (grid[i].contains(mouseX,mouseY)) {
+        grid[i].selected = true;
+      }
+    }
+    var ind1 = 0;
+    var ind2 = 0;
+    for (var i = 0 ; i < cols ; i++) {
+      if (grid[i].selected) {
+        ind1 = i;
+        grid[i].selected = false;
+        break;
+      }
+    }
+    for (var i = 0 ; i < cols ; i++) {
+      if (grid[i].selected) {
+        ind2 = i;
+        grid[i].selected = false;
+        break;
+      }
+    }
+    doMove(ind1,ind2);
+  } 
+}
+
+function createArray(cols) {
+  var arr = new Array(cols);
+  return arr;
+}
+
+function pickColor(i) {
+  var midp = (cols-1)/2;
+  if (i < midp) {
+    return "b";
+  } else if (i == midp) {
+    return "s" ;
+    
+  } else if (i > midp ) {
+    return "w";
+  }
+}
+
+var gridMemory = [];
+
+function reset() {
+  grid = createArray(cols);
+  for (var i = 0 ; i < cols ; i++) {
+    grid[i] = new Cell(i*x,y,w,i);
+  }
+  interval = 1;
+  finished = false;
+  console.log(moves);
+  if (moves > maxMove) {
+    maxMove = moves;
+  } 
+  moves = 0;
+  
+  console.log(maxMove);
+  gridMemory = [];
+}
+
+function setup() {
+  grid = createArray(cols);
+  createCanvas(cols * x + 20, 2*y + 40);
+  for (var i = 0 ; i < cols ; i++) {
+    grid[i] = new Cell(i*x,y,w,i);
+  }
+}
+
+var interval = 1;
+var finished = false;
+
+
+function draw() {
+  
+  background(220);
+  for (var i = 0 ; i < cols ; i++) {
+    grid[i].show();
+    if (grid[i].selected) {
+      text(i+1 +" Selected",100,2*y + 30);
+    } 
+  }
+  textSize(16);
+  text("Moves:" + moves, 20,2*y + 30);
+  
+  
+  interval += 1;
+  if(interval % 0.33 == 0) {
+    var posMoves = [];
+    for (var i = 0 ; i < cols ; i++) {
+      if (grid[i].color == "s") {
+                 
+        if(i+2 < cols && i-2 > -1 && grid[i+2].color == "w" && grid[i+1].color == "b") {
+          posMoves.push([i,i+2]);
+        }  if ( i+2 < cols && i-2 > -1 && grid[i+2].color == "b" && grid[i+1].color == "w" ) {
+          posMoves.push([i,i+2]);
+        }  if (i+2 < cols && i-2 > -1 && grid[i-2].color == "b" && grid[i-1].color == "w" ) {
+          posMoves.push([i-2,i]);
+        }  if (i+2 < cols && i-2 > -1 && grid[i-2].color == "w" && grid[i-1].color == "b" ) {
+          posMoves.push([i-2,i]);
+        }  if (i+1 < cols && i-1 > -1 && grid[i+1].color == "w") {
+          posMoves.push([i,i+1]);
+        }  if (i+1 < cols && i-1 > -1 && grid[i-1].color == "b")  {
+          posMoves.push([i,i-1]);
+        }
+      } 
+    }
+  
+   if (posMoves == []) {
+     textSize(32);
+     text("Out Of Moves", 20 , 20);
+     noLoop();
+   }
+   else {
+     console.log(evaluateBoard(grid));
+     var randomNumber = Math.floor(Math.random() * posMoves.length);
+     if (posMoves.length !== 0) {
+     makeBestMove();
+     
+     } else {
+       reset();
+     }
+   }
+     var flag = 0;
+    var midp2 = (cols-1)/2;
+     for (var i = 0; i < cols ; i++) {
+       if( i < midp2) {
+         if (grid[i].color == "w") {
+           flag++;
+         }
+       } else if (i == midp2) {
+         if (grid[i].color == "s") {
+           flag++;
+         }
+       } else if (i > midp2) {
+         if (grid[i].color == "b") {
+           flag++;
+         }
+       }
+     }
+    if (flag == cols) {
+      finished = true;
+      noLoop();
+    }
+   }
+  }
